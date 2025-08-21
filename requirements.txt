@@ -3,10 +3,4 @@ groq
 qdrant-client
 pytest-mock
 numpy
-pydantic
-pydantic-settings
-python-dotenv
-fastapi
-uvicorn[standard]
-pydantic
-python-multipart
+tiktoken

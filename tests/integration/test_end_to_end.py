@@ -10,7 +10,7 @@ def test_end_to_end_rag_pipeline(mock_groq):
     """
     # 1. Initialize services
     embedding_service = EmbeddingService()
-    vector_store = VectorStore(collection_name="end_to_end_test")
+    vector_store = VectorStore(collection_name="end_to_end_test_1")
 
     # 2. Add data to the vector store
     documents = [
@@ -38,8 +38,101 @@ def test_end_to_end_rag_pipeline(mock_groq):
 
     # Verify that the Groq client was called
     mock_groq.chat.completions.create.assert_called_once()
-    # You could add more specific assertions here about the context passed to Groq
-    # For example, check that the context contained "The sky is blue."
     args, kwargs = mock_groq.chat.completions.create.call_args
     system_message = kwargs['messages'][0]['content']
     assert "The sky is blue" in system_message
+
+def test_end_to_end_no_context(mock_groq):
+    """
+    Tests the RAG pipeline end-to-end when no context is found.
+    """
+    # 1. Initialize services
+    embedding_service = EmbeddingService()
+    vector_store = VectorStore(collection_name="end_to_end_test_2")
+
+    # 2. RAG agent
+    rag_agent = RAGAgent(
+        groq_api_key="fake-api-key",
+        embedding_service=embedding_service,
+        vector_store=vector_store,
+    )
+
+    # 3. Ask a question
+    rag_agent.answer("A question with no context")
+
+    # 4. Verify that the correct system message is used
+    mock_groq.chat.completions.create.assert_called_once()
+    args, kwargs = mock_groq.chat.completions.create.call_args
+    system_message = kwargs['messages'][0]['content']
+    assert "could not find any relevant context" in system_message
+
+def test_end_to_end_deduplication(mock_groq):
+    """
+    Tests that the RAG pipeline deduplicates context.
+    """
+    # 1. Initialize services
+    embedding_service = EmbeddingService()
+    vector_store = VectorStore(collection_name="end_to_end_test_3")
+
+    # 2. Add data to the vector store
+    documents = [
+        "The sky is blue.",
+        "The sky is blue.",
+        "The grass is green.",
+    ]
+    embeddings = [embedding_service.create_embedding(doc) for doc in documents]
+    payloads = [{"text": doc} for doc in documents]
+    vector_store.upsert(embeddings, payloads)
+
+    # 3. RAG agent
+    rag_agent = RAGAgent(
+        groq_api_key="fake-api-key",
+        embedding_service=embedding_service,
+        vector_store=vector_store,
+    )
+
+    # 4. Ask a question
+    rag_agent.answer("A question")
+
+    # 5. Verify that the context is deduplicated
+    mock_groq.chat.completions.create.assert_called_once()
+    args, kwargs = mock_groq.chat.completions.create.call_args
+    system_message = kwargs['messages'][0]['content']
+    assert system_message.count("The sky is blue.") == 1
+    assert "The grass is green." in system_message
+
+def test_end_to_end_token_budgeting(mock_groq):
+    """
+    Tests that the RAG pipeline respects the token budget.
+    """
+    # 1. Initialize services
+    embedding_service = EmbeddingService()
+    vector_store = VectorStore(collection_name="end_to_end_test_4")
+
+    # 2. Add data to the vector store
+    long_text = "This is a very long text. " * 100
+    documents = [
+        "This is a short text.",
+        long_text,
+    ]
+    embeddings = [embedding_service.create_embedding(doc) for doc in documents]
+    payloads = [{"text": doc} for doc in documents]
+    vector_store.upsert(embeddings, payloads)
+
+    # 3. RAG agent with a small token limit
+    rag_agent = RAGAgent(
+        groq_api_key="fake-api-key",
+        embedding_service=embedding_service,
+        vector_store=vector_store,
+        max_context_tokens=10
+    )
+
+    # 4. Ask a question
+    rag_agent.answer("A question")
+
+    # 5. Verify that the context is truncated
+    mock_groq.chat.completions.create.assert_called_once()
+    args, kwargs = mock_groq.chat.completions.create.call_args
+    system_message = kwargs['messages'][0]['content']
+    assert "This is a short text." in system_message
+    assert long_text not in system_message
