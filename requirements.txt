@@ -1,6 +1,7 @@
+qdrant-client
+python-dotenv
 pytest
 groq
-qdrant-client
 pytest-mock
 numpy
 pydantic
