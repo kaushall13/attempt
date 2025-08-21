@@ -8,7 +8,7 @@ def main():
     """
     # 1. Initialize the components
     embedding_service = EmbeddingService()
-    vector_store = DummyVectorStore()
+    vector_store = DummyVectorStore(embedding_service=embedding_service)
     retrieval_agent = RetrievalAgent(
         embedding_service=embedding_service,
         vector_store=vector_store

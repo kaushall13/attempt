@@ -1,48 +1,58 @@
 import numpy as np
 from typing import List, Dict, Any
+from src.services.embedding_service import EmbeddingService
 
 class DummyVectorStore:
-    def __init__(self):
-        # In a real vector store, you would initialize a connection to a database
-        # or load an index from a file.
+    def __init__(self, embedding_service: EmbeddingService):
+        """
+        Initializes the DummyVectorStore.
+
+        Args:
+            embedding_service: An instance of EmbeddingService to generate embeddings.
+        """
+        self.embedding_service = embedding_service
         self.documents = self._create_dummy_documents()
 
     def _create_dummy_documents(self) -> List[Dict[str, Any]]:
-        """Creates a few dummy documents for demonstration."""
-        return [
-            {
-                "text": "The sky is blue.",
-                "metadata": {"source": "nature.txt"},
-                "embedding": np.random.rand(1536).tolist(),
-            },
-            {
-                "text": "The sun is bright.",
-                "metadata": {"source": "nature.txt"},
-                "embedding": np.random.rand(1536).tolist(),
-            },
-            {
-                "text": "The cat sat on the mat.",
-                "metadata": {"source": "animals.txt"},
-                "embedding": np.random.rand(1536).tolist(),
-            },
+        """
+        Creates a few dummy documents and generates their embeddings.
+        """
+        texts = [
+            "The sky is blue.",
+            "The sun is bright.",
+            "The cat sat on the mat.",
         ]
+
+        docs = []
+        for text in texts:
+            embedding = self.embedding_service.encode(text)
+            docs.append(
+                {
+                    "text": text,
+                    "metadata": {"source": "dummy.txt"},
+                    "embedding": embedding,
+                }
+            )
+        return docs
 
     def search(self, query_vector: List[float], top_k: int = 3) -> List[Dict[str, Any]]:
         """
-        Simulates a similarity search in the vector store.
-        In a real implementation, this would use an efficient search algorithm
-        like HNSW or IVF. Here, we just return dummy results.
+        Performs a similarity search using cosine similarity.
         """
+        query_np = np.array(query_vector)
+
         results = []
         for doc in self.documents:
-            # Simulate a similarity score (e.g., cosine similarity)
-            # For this dummy implementation, we'll just use a random score.
-            score = np.random.uniform(0.7, 1.0)
+            doc_np = np.array(doc["embedding"])
+
+            # Since vectors are L2-normalized, cosine similarity is the dot product
+            sim = np.dot(query_np, doc_np)
+
             results.append(
                 {
                     "text": doc["text"],
                     "metadata": doc["metadata"],
-                    "score": score,
+                    "score": sim,
                 }
             )
 
