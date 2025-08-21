@@ -1,3 +1,13 @@
 qdrant-client
 python-dotenv
 pytest
+groq
+pytest-mock
+numpy
+pydantic
+pydantic-settings
+python-dotenv
+fastapi
+uvicorn[standard]
+pydantic
+python-multipart
