@@ -21,14 +21,17 @@ class QdrantClient:
 
     def create_collection(self, name: str, vector_size: int):
         """
-        Creates a new collection in Qdrant.
+        Creates a new collection in Qdrant if it does not exist.
         """
         try:
-            self.client.recreate_collection(
-                collection_name=name,
-                vectors_config=models.VectorParams(size=vector_size, distance=models.Distance.COSINE),
-            )
-            print(f"Collection '{name}' created successfully.")
+            if not self.client.collection_exists(collection_name=name):
+                self.client.create_collection(
+                    collection_name=name,
+                    vectors_config=models.VectorParams(size=vector_size, distance=models.Distance.COSINE),
+                )
+                print(f"Collection '{name}' created successfully.")
+            else:
+                print(f"Collection '{name}' already exists.")
         except Exception as e:
             print(f"Error creating collection '{name}': {e}")
 
@@ -54,7 +57,7 @@ class QdrantClient:
         except Exception as e:
             print(f"Error upserting documents into collection '{collection}': {e}")
 
-    def search(self, collection: str, query_vector: list[float], limit: int = 10):
+    def search(self, collection: str, query_vector: list[float], limit: int = 10, score_threshold: float = 0.7):
         """
         Searches for similar vectors in a collection.
         """
@@ -63,7 +66,10 @@ class QdrantClient:
                 collection_name=collection,
                 query_vector=query_vector,
                 limit=limit,
+                score_threshold=score_threshold,
             )
+            if not hits:
+                print("No results found.")
             return hits
         except Exception as e:
             print(f"Error searching in collection '{collection}': {e}")

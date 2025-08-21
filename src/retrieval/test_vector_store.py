@@ -25,18 +25,31 @@ class TestQdrantClient(unittest.TestCase):
             QdrantClient()
 
     @patch('src.retrieval.vector_store.QC')
-    def test_create_collection(self, mock_qdrant_client):
-        """Test the create_collection method."""
+    def test_create_collection_new(self, mock_qdrant_client):
+        """Test the create_collection method for a new collection."""
         mock_client_instance = MagicMock()
+        mock_client_instance.collection_exists.return_value = False
         mock_qdrant_client.return_value = mock_client_instance
 
         client = QdrantClient()
         client.create_collection("test_collection", 128)
 
-        mock_client_instance.recreate_collection.assert_called_with(
+        mock_client_instance.create_collection.assert_called_with(
             collection_name="test_collection",
             vectors_config=models.VectorParams(size=128, distance=models.Distance.COSINE)
         )
+
+    @patch('src.retrieval.vector_store.QC')
+    def test_create_collection_existing(self, mock_qdrant_client):
+        """Test the create_collection method for an existing collection."""
+        mock_client_instance = MagicMock()
+        mock_client_instance.collection_exists.return_value = True
+        mock_qdrant_client.return_value = mock_client_instance
+
+        client = QdrantClient()
+        client.create_collection("test_collection", 128)
+
+        mock_client_instance.create_collection.assert_not_called()
 
     @patch('src.retrieval.vector_store.QC')
     def test_add_documents(self, mock_qdrant_client):
@@ -57,21 +70,34 @@ class TestQdrantClient(unittest.TestCase):
         self.assertEqual(len(kwargs['points']), 2)
 
     @patch('src.retrieval.vector_store.QC')
-    def test_search(self, mock_qdrant_client):
-        """Test the search method."""
+    def test_search_with_threshold(self, mock_qdrant_client):
+        """Test the search method with a score_threshold."""
         mock_client_instance = MagicMock()
         mock_qdrant_client.return_value = mock_client_instance
         mock_client_instance.search.return_value = "search_results"
 
         client = QdrantClient()
-        results = client.search("test_collection", [0.1, 0.2])
+        results = client.search("test_collection", [0.1, 0.2], score_threshold=0.8)
 
         mock_client_instance.search.assert_called_with(
             collection_name="test_collection",
             query_vector=[0.1, 0.2],
-            limit=10
+            limit=10,
+            score_threshold=0.8
         )
         self.assertEqual(results, "search_results")
+
+    @patch('src.retrieval.vector_store.QC')
+    def test_search_no_results(self, mock_qdrant_client):
+        """Test the search method when no results are found."""
+        mock_client_instance = MagicMock()
+        mock_qdrant_client.return_value = mock_client_instance
+        mock_client_instance.search.return_value = []
+
+        client = QdrantClient()
+        results = client.search("test_collection", [0.1, 0.2])
+
+        self.assertEqual(results, [])
 
     @patch('src.retrieval.vector_store.QC')
     def test_delete_collection(self, mock_qdrant_client):
